@@ -1,0 +1,11 @@
+Total images analyzed: 180
+Unimodal images: 180
+Multimodal images: 0
+
+Average histogram statistics:
+Mean gray level: 0.0039
+Standard deviation: 0.0042
+Modality: Unimodal
+
+Significant peaks in average histogram:
+Peak 1: Gray level = 109, Height = 0.0130
