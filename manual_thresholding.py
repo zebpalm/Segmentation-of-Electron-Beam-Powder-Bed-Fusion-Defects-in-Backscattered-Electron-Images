@@ -52,7 +52,7 @@ def preprocess_image(image, kernel_size=(9,9), sigma=2.0, block_size=3, constant
     # Filter regions based on size and shape
     min_area = 1000  # Minimum area in pixels
     max_area = 100000  # Maximum area in pixels
-    min_solidity = 0.65  # Minimum solidity (area / convex hull area)
+    min_solidity = 0.67  # Minimum solidity (area / convex hull area)
     
     for i in range(1, num_labels):  # Skip background (label 0)
         area = stats[i, cv2.CC_STAT_AREA]
@@ -134,8 +134,8 @@ def create_comparison_image(original, preprocessed, thresholded, eroded_dilated,
 
 def main():
     # Input and output directories
-    input_dir = Path("/Users/zebpalm/Exjobb 2025/Coding/evaluation_images/topo1")
-    output_dir = Path("/Users/zebpalm/Exjobb 2025/Coding/adaptive_threshold_filtered")
+    input_dir = Path("/Users/zebpalm/Exjobb 2025/BSE images/topo1/Top_180_divided_samples")
+    output_dir = Path("/Users/zebpalm/Exjobb 2025/Coding/adaptive_threshold_filtered/top_180_topo1")
     output_dir.mkdir(parents=True, exist_ok=True)
     
     print(f"Processing images from: {input_dir}")
@@ -143,7 +143,7 @@ def main():
     
     # Process each image in the input directory
     for img_path in input_dir.glob("*.png"):
-        print(f"Processing: {img_path}")
+        #print(f"Processing: {img_path}")
         # Read image
         image = cv2.imread(str(img_path), cv2.IMREAD_GRAYSCALE)
         if image is None:
