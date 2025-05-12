@@ -2,8 +2,6 @@ import cv2
 import numpy as np
 import os
 from pathlib import Path
-import matplotlib.pyplot as plt
-from matplotlib.widgets import Slider
 
 def preprocess_image(image, kernel_size=(9,9), sigma=2.0, block_size=3, constant=2):
     """
@@ -76,82 +74,6 @@ def preprocess_image(image, kernel_size=(9,9), sigma=2.0, block_size=3, constant
     
     return equalized, adaptive_thresh, segmented
 
-def create_interactive_comparison(original_image, output_dir, img_name):
-    """Create an interactive comparison with adjustable adaptive thresholding parameters."""
-    # Create figure with subplots
-    fig, axes = plt.subplots(2, 2, figsize=(15, 12))
-    plt.subplots_adjust(bottom=0.3)  # Make room for the sliders
-    
-    # Display original image
-    axes[0, 0].imshow(original_image, cmap='gray')
-    axes[0, 0].set_title('Original Image')
-    axes[0, 0].axis('off')
-    
-    # Display preprocessed image (fixed)
-    preprocessed, _, _ = preprocess_image(original_image, block_size=11, constant=2)
-    axes[0, 1].imshow(preprocessed, cmap='gray')
-    axes[0, 1].set_title('Preprocessed (Gaussian + Equalization)')
-    axes[0, 1].axis('off')
-    
-    # Display thresholded image (will be updated)
-    thresholded_img = axes[1, 0].imshow(original_image, cmap='gray')
-    axes[1, 0].set_title('Adaptive Thresholded Image')
-    axes[1, 0].axis('off')
-    
-    # Display filtered image (will be updated)
-    filtered_img = axes[1, 1].imshow(original_image, cmap='gray')
-    axes[1, 1].set_title('Filtered Segmented Image')
-    axes[1, 1].axis('off')
-    
-    # Add sliders
-    ax_block_size = plt.axes([0.25, 0.15, 0.65, 0.03])
-    ax_constant = plt.axes([0.25, 0.1, 0.65, 0.03])
-    
-    block_size_slider = Slider(
-        ax=ax_block_size,
-        label='Block Size',
-        valmin=3,
-        valmax=99,
-        valinit=11,
-        valstep=2  # Ensure odd numbers
-    )
-    
-    constant_slider = Slider(
-        ax=ax_constant,
-        label='Constant',
-        valmin=-20,
-        valmax=20,
-        valinit=2,
-        valstep=1
-    )
-    
-    def update(val):
-        block_size = int(block_size_slider.val)
-        constant = int(constant_slider.val)
-        
-        _, thresholded, filtered = preprocess_image(
-            original_image,
-            block_size=block_size,
-            constant=constant
-        )
-        
-        thresholded_img.set_data(thresholded)
-        filtered_img.set_data(filtered)
-        axes[1, 0].set_title(f'Adaptive Thresholded (Block Size: {block_size}, Constant: {constant})')
-        fig.canvas.draw_idle()
-        
-        # Save the current state
-        comparison = create_comparison_image(original_image, preprocessed, thresholded, filtered)
-        output_path = output_dir / f"comparison_{img_name}_block{block_size}_const{constant}.png"
-        cv2.imwrite(str(output_path), comparison)
-    
-    block_size_slider.on_changed(update)
-    constant_slider.on_changed(update)
-    
-    # Save the initial state
-    plt.savefig(output_dir / f"interactive_{img_name}.png")
-    plt.show()
-
 def create_comparison_image(original, preprocessed, thresholded, filtered_segmented):
     """
     Create a side-by-side comparison of original, preprocessed, and both segmented images with labels.
@@ -218,8 +140,21 @@ def main():
             print(f"Could not read image: {img_path}")
             continue
         
-        # Create interactive comparison
-        create_interactive_comparison(image, output_dir, img_path.stem)
+        # Preprocess image with default parameters
+        preprocessed, thresholded, filtered = preprocess_image(image)
+        
+        # Create comparison image
+        comparison = create_comparison_image(
+            image,
+            preprocessed,
+            thresholded,
+            filtered
+        )
+        
+        # Save comparison image
+        comparison_path = output_dir / f"comparison_{img_path.stem}.png"
+        cv2.imwrite(str(comparison_path), comparison)
+        print(f"Saved comparison: {comparison_path}")
 
 if __name__ == "__main__":
     main()
