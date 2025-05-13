@@ -138,9 +138,6 @@ def process_images():
     input_dir = Path("/Users/zebpalm/Exjobb 2025/BSE images/evaluation_images/topo1")
     output_dir = Path("gradient_thresholding_resemblance_attempt")
     
-    print(f"Input directory: {input_dir}")
-    print(f"Output directory: {output_dir}")
-    
     if not input_dir.exists():
         raise FileNotFoundError(f"Input directory not found: {input_dir}")
     
@@ -150,43 +147,23 @@ def process_images():
     if not image_files:
         raise FileNotFoundError(f"No PNG files found in {input_dir}")
     
-    print(f"Found {len(image_files)} PNG files to process")
-    
     for img_path in image_files:
         try:
-            print(f"\nProcessing {img_path.name}")
             img = load_image(img_path)
-            print(f"Image loaded successfully. Shape: {img.shape}")
-            
-            # Compute gradient magnitude
             gradient_magnitude = compute_gradient_magnitude(img)
-            print("Computed gradient magnitude")
-            
-            # Compute gradient histogram
             gradient_histogram = compute_gradient_histogram(img, gradient_magnitude)
-            print("Computed gradient histogram")
-            
-            # Find optimal threshold
             T_star, GP, GV = find_optimal_threshold(gradient_histogram)
-            print(f"Found optimal threshold: {T_star} (GP: {GP}, GV: {GV})")
-            
-            # Apply threshold
             _, thresholded = cv2.threshold(img, T_star, 255, cv2.THRESH_BINARY)
-            print("Applied threshold")
             
-            # Save visualization
             output_path = output_dir / f"{img_path.stem}_gradient_analysis.png"
             plot_results(img, gradient_magnitude, thresholded, gradient_histogram,
                         T_star, GP, GV, output_path)
-            print(f"Saved results to {output_path}")
             
         except Exception as e:
-            print(f"Error processing {img_path.name}: {str(e)}")
             continue
 
 if __name__ == "__main__":
     try:
         process_images()
     except Exception as e:
-        print(f"Error: {str(e)}")
         raise 
