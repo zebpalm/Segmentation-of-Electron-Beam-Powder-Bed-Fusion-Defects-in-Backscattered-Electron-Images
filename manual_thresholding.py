@@ -133,39 +133,53 @@ def create_comparison_image(original, preprocessed, thresholded, eroded_dilated,
     return comparison
 
 def main():
-    # Input and output directories
-    input_dir = Path("/Users/zebpalm/Exjobb 2025/BSE images/topo1/Top_180_divided_samples")
-    output_dir = Path("/Users/zebpalm/Exjobb 2025/Coding/adaptive_threshold_filtered/top_180_topo1")
-    output_dir.mkdir(parents=True, exist_ok=True)
+    # Input and output base directories
+    # base_input_dir = Path("/Users/zebpalm/Exjobb 2025/BSE images/topo1/Top_180_divided_samples")
+    # base_output_dir = Path("/Users/zebpalm/Exjobb 2025/Coding/adaptive_threshold_filtered")
+
+    base_input_dir = Path("/Users/zebpalm/Exjobb 2025/BSE images/evaluation_images/topo1")
+    base_output_dir = Path("/Users/zebpalm/Exjobb 2025/Coding/adaptive_threshold_filtered/evaluation_images_topo1")
     
-    print(f"Processing images from: {input_dir}")
-    print(f"Saving processed images to: {output_dir}")
+    # Get all subdirectories in the input directory
+    subdirs = [d for d in base_input_dir.iterdir() if d.is_dir()]
     
-    # Process each image in the input directory
-    for img_path in input_dir.glob("*.png"):
-        #print(f"Processing: {img_path}")
-        # Read image
-        image = cv2.imread(str(img_path), cv2.IMREAD_GRAYSCALE)
-        if image is None:
-            print(f"Could not read image: {img_path}")
-            continue
+    # If no subdirectories found, process the base directory itself
+    if not subdirs:
+        subdirs = [base_input_dir]
+    
+    for input_dir in subdirs:
+        # Create corresponding output directory
+        output_dir = base_output_dir / input_dir.name
+        output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Preprocess image with default parameters
-        preprocessed, thresholded, eroded_dilated, filtered = preprocess_image(image)
+        #print(f"\nProcessing images from: {input_dir}")
+        #print(f"Saving processed images to: {output_dir}")
         
-        # Create comparison image
-        comparison = create_comparison_image(
-            image,
-            preprocessed,
-            thresholded,
-            eroded_dilated,
-            filtered
-        )
-        
-        # Save comparison image
-        comparison_path = output_dir / f"comparison_{img_path.stem}.png"
-        cv2.imwrite(str(comparison_path), comparison)
-        print(f"Saved comparison: {comparison_path}")
+        # Process each image in the input directory
+        for img_path in input_dir.glob("*.png"):
+            #print(f"Processing: {img_path}")
+            # Read image
+            image = cv2.imread(str(img_path), cv2.IMREAD_GRAYSCALE)
+            if image is None:
+                print(f"Could not read image: {img_path}")
+                continue
+            
+            # Preprocess image with default parameters
+            preprocessed, thresholded, eroded_dilated, filtered = preprocess_image(image)
+            
+            # Create comparison image
+            comparison = create_comparison_image(
+                image,
+                preprocessed,
+                thresholded,
+                eroded_dilated,
+                filtered
+            )
+            
+            # Save comparison image
+            comparison_path = output_dir / f"comparison_{img_path.stem}.png"
+            cv2.imwrite(str(comparison_path), comparison)
+            #print(f"Saved comparison: {comparison_path}")
 
 if __name__ == "__main__":
     main()
