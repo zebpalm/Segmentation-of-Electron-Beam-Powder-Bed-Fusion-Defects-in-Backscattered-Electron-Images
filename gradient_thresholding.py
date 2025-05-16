@@ -64,7 +64,7 @@ def compute_gradient_histogram(original_image, gradient_image):
     
     return average_gradient
 
-def find_optimal_threshold(gradient_histogram, dg=2):
+def find_optimal_threshold(gradient_histogram, dg=1):
     """Find optimal threshold based on gradient histogram morphology, focusing on higher intensities for inverted images."""
     gray_levels = np.arange(256)
     # Focus on the upper half of the histogram (bright in inverted = dark in original)
@@ -167,6 +167,12 @@ def process_images():
             
             # Apply threshold on the inverted image
             _, thresholded = cv2.threshold(img_inverted, T_star, 255, cv2.THRESH_BINARY)
+            
+            # Remove pixel groups larger than 100 pixels
+            num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(thresholded, connectivity=8)
+            for i in range(1, num_labels):
+                if stats[i, cv2.CC_STAT_AREA] > 100:
+                    thresholded[labels == i] = 0
             
             # Save visualization using the original image
             output_path = output_dir / f"{img_path.stem}_gradient_analysis.png"
