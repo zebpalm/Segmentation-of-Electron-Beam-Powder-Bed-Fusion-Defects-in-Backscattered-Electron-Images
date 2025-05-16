@@ -9,6 +9,7 @@ def load_image(image_path):
     if img is None:
         raise ValueError(f"Could not load image: {image_path}")
     return img
+    img_inverted = 255 - img
 
 def compute_gradient_magnitude(image):
     """Compute gradient magnitude using Sobel operator in 4 directions."""
@@ -63,18 +64,19 @@ def compute_gradient_histogram(original_image, gradient_image):
     
     return average_gradient
 
-def find_optimal_threshold(gradient_histogram, dg=5):
-    """Find optimal threshold based on gradient histogram morphology."""
-    # Find peak in gray-level histogram
+def find_optimal_threshold(gradient_histogram, dg=2):
+    """Find optimal threshold based on gradient histogram morphology, focusing on higher intensities for inverted images."""
     gray_levels = np.arange(256)
-    G = np.argmax(gradient_histogram)
+    # Focus on the upper half of the histogram (bright in inverted = dark in original)
+    search_start = 160
+    G = search_start + np.argmax(gradient_histogram[search_start:])
     
     # Search for minimum gradient in [G-dg, G+dg]
     search_range = slice(max(0, G-dg), min(256, G+dg+1))
     GV = G - dg + np.argmin(gradient_histogram[search_range])
     
-    # Search for maximum gradient in [0, GV]
-    GP = np.argmax(gradient_histogram[:GV+1])
+    # Search for maximum gradient in [GV, 255]
+    GP = GV + np.argmax(gradient_histogram[GV:])
     
     # Optimal threshold is midpoint of transition zone
     T_star = (GP + GV) // 2
@@ -123,7 +125,7 @@ def plot_results(original, gradient_magnitude, thresholded, gradient_histogram,
     axes[1, 1].axvline(x=T_star, color='r', linestyle='--', label=f'Threshold: {T_star}')
     axes[1, 1].axvline(x=GP, color='g', linestyle=':', label=f'GP: {GP}')
     axes[1, 1].axvline(x=GV, color='b', linestyle=':', label=f'GV: {GV}')
-    axes[1, 1].set_title('Gray Gradient Distribution Histogram')
+    axes[1, 1].set_title('Gray Gradient Distribution Histogram (Inverted)')
     axes[1, 1].legend()
     
     # Hide the last subplot
@@ -138,9 +140,6 @@ def process_images():
     input_dir = Path("/Users/zebpalm/Exjobb 2025/BSE images/evaluation_images/topo1_evaluation")
     output_dir = Path("gradient_thresholding_resemblance_attempt")
     
-    print(f"Input directory: {input_dir}")
-    print(f"Output directory: {output_dir}")
-    
     if not input_dir.exists():
         raise FileNotFoundError(f"Input directory not found: {input_dir}")
     
@@ -150,38 +149,31 @@ def process_images():
     if not image_files:
         raise FileNotFoundError(f"No PNG files found in {input_dir}")
     
-    print(f"Found {len(image_files)} PNG files to process")
-    
     for img_path in image_files:
         try:
-            print(f"\nProcessing {img_path.name}")
-            img = load_image(img_path)
-            print(f"Image loaded successfully. Shape: {img.shape}")
+            img_original = load_image(img_path)
             
-            # Compute gradient magnitude
-            gradient_magnitude = compute_gradient_magnitude(img)
-            print("Computed gradient magnitude")
+            # Invert the image for processing
+            img_inverted = 255 - img_original
             
-            # Compute gradient histogram
-            gradient_histogram = compute_gradient_histogram(img, gradient_magnitude)
-            print("Computed gradient histogram")
+            # Compute gradient magnitude using the inverted image
+            gradient_magnitude = compute_gradient_magnitude(img_inverted)
+            
+            # Compute gradient histogram using the inverted image
+            gradient_histogram = compute_gradient_histogram(img_inverted, gradient_magnitude)
             
             # Find optimal threshold
             T_star, GP, GV = find_optimal_threshold(gradient_histogram)
-            print(f"Found optimal threshold: {T_star} (GP: {GP}, GV: {GV})")
             
-            # Apply threshold
-            _, thresholded = cv2.threshold(img, T_star, 255, cv2.THRESH_BINARY)
-            print("Applied threshold")
+            # Apply threshold on the inverted image
+            _, thresholded = cv2.threshold(img_inverted, T_star, 255, cv2.THRESH_BINARY)
             
-            # Save visualization
+            # Save visualization using the original image
             output_path = output_dir / f"{img_path.stem}_gradient_analysis.png"
-            plot_results(img, gradient_magnitude, thresholded, gradient_histogram,
+            plot_results(img_original, gradient_magnitude, thresholded, gradient_histogram,
                         T_star, GP, GV, output_path)
-            print(f"Saved results to {output_path}")
             
         except Exception as e:
-            print(f"Error processing {img_path.name}: {str(e)}")
             continue
 
 if __name__ == "__main__":
