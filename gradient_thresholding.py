@@ -156,17 +156,20 @@ def process_images():
             # Invert the image for processing
             img_inverted = 255 - img_original
             
-            # Compute gradient magnitude using the inverted image
-            gradient_magnitude = compute_gradient_magnitude(img_inverted)
+            # Apply Gaussian filtering to the inverted image
+            img_filtered = cv2.GaussianBlur(img_inverted, (3, 3), 1)
             
-            # Compute gradient histogram using the inverted image
-            gradient_histogram = compute_gradient_histogram(img_inverted, gradient_magnitude)
+            # Compute gradient magnitude using the filtered image
+            gradient_magnitude = compute_gradient_magnitude(img_filtered)
+            
+            # Compute gradient histogram using the filtered image
+            gradient_histogram = compute_gradient_histogram(img_filtered, gradient_magnitude)
             
             # Find optimal threshold
             T_star, GP, GV = find_optimal_threshold(gradient_histogram)
             
-            # Apply threshold on the inverted image
-            _, thresholded = cv2.threshold(img_inverted, T_star, 255, cv2.THRESH_BINARY)
+            # Apply threshold on the filtered image
+            _, thresholded = cv2.threshold(img_filtered, T_star, 255, cv2.THRESH_BINARY)
             
             # Remove pixel groups larger than 100 pixels
             num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(thresholded, connectivity=8)
