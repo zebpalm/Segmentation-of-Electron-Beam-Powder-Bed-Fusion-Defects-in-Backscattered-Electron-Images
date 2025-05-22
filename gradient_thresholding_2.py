@@ -93,7 +93,7 @@ def smooth_histogram(hist, sigma=2):
     smoothed_hist = np.convolve(hist, kernel, mode='same')
     return smoothed_hist
 
-def find_peak_and_valley(g_avg, distance=30, prominence=15):
+def find_peak_and_valley(g_avg, distance=40, prominence=10):
     """
     Find the peak value G from smoothed histogram, lowest valley Gv in interval [0,G],
     peak Gp in interval [0,Gv], and threshold T* = (Gp+Gv)/2.
@@ -110,14 +110,14 @@ def find_peak_and_valley(g_avg, distance=30, prominence=15):
         T_star (float): Threshold value (Gp+Gv)/2
     """
     # Smooth the histogram
-    smoothed_hist = smooth_histogram(g_avg, sigma=1.5)
+    smoothed_hist = smooth_histogram(g_avg, sigma=2.5)
     
     # Find the maximum in original histogram
     max_idx = np.argmax(g_avg)
     
     # Define window around the maximum
-    window_start = max(0, max_idx - 50)
-    window_end = max_idx + 5
+    window_start = max(0, max_idx - 60)
+    window_end = max_idx + 1
     
     # Find the maximum in the window of smoothed histogram
     G = window_start + np.argmax(smoothed_hist[window_start:window_end])
