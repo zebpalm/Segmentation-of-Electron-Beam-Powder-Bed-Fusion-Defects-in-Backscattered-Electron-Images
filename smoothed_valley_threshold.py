@@ -114,7 +114,12 @@ def process_images():
     if not input_dir.exists():
         raise FileNotFoundError(f"Input directory not found: {input_dir}")
     
+    # Create main output directory and subdirectories
     output_dir.mkdir(exist_ok=True)
+    comparison_dir = output_dir / "comparison_images"
+    binary_masks_dir = output_dir / "binary_masks"
+    comparison_dir.mkdir(exist_ok=True)
+    binary_masks_dir.mkdir(exist_ok=True)
     
     image_files = sorted(input_dir.glob("*.png"))
     if not image_files:
@@ -133,9 +138,32 @@ def process_images():
             # Find valleys
             smoothed_hist, valleys = find_valleys(hist)
             
-            # Save visualization
-            output_path = output_dir / f"{img_path.stem}_valleys.png"
-            plot_histogram_with_valleys(smoothed_hist, valleys, img_processed, img_original, output_path)
+            if not valleys:
+                print(f"No valleys found in {img_path}")
+                continue
+            
+            # Use the deepest valley as threshold
+            threshold, _ = valleys[0]
+            
+            # Create binary mask
+            _, binary_mask = cv2.threshold(img_processed, threshold, 255, cv2.THRESH_BINARY_INV)
+            
+            # Remove regions larger than 300 pixels
+            num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(binary_mask, connectivity=8)
+            
+            # Create a new mask with only regions smaller than 300 pixels
+            filtered_mask = np.zeros_like(binary_mask)
+            for i in range(1, num_labels):  # Skip background (label 0)
+                if stats[i, cv2.CC_STAT_AREA] <= 300:
+                    filtered_mask[labels == i] = 255
+            
+            # Save binary mask
+            binary_mask_path = binary_masks_dir / f"filtered_{img_path.stem}.png"
+            cv2.imwrite(str(binary_mask_path), filtered_mask)
+            
+            # Save comparison visualization
+            comparison_path = comparison_dir / f"{img_path.stem}_valleys.png"
+            plot_histogram_with_valleys(smoothed_hist, valleys, img_processed, img_original, comparison_path)
             
         except Exception as e:
             print(f"Error processing {img_path}: {str(e)}")
