@@ -215,6 +215,16 @@ def process_images():
             # Values below T* become foreground (255), values above become background (0)
             _, binary_mask = cv2.threshold(img_filtered, T_star, 255, cv2.THRESH_BINARY_INV)
             
+            # Apply morphological opening to remove small noise
+            kernel = np.ones((3,3), np.uint8)
+            binary_mask = cv2.morphologyEx(binary_mask, cv2.MORPH_OPEN, kernel)
+            
+            # Remove regions larger than 300 pixels
+            num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(binary_mask, connectivity=8)
+            for i in range(1, num_labels):  # Skip background (label 0)
+                if stats[i, cv2.CC_STAT_AREA] > 300:
+                    binary_mask[labels == i] = 0
+            
             # Save binary mask
             binary_mask_path = binary_masks_dir / f"filtered_{img_path.stem}.png"
             cv2.imwrite(str(binary_mask_path), binary_mask)
