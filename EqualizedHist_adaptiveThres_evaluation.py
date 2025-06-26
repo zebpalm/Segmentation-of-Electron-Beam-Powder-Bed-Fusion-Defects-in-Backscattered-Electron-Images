@@ -38,8 +38,8 @@ def calculate_metrics(pred_mask, truth_mask):
 def evaluate_masks():
     """Evaluate prediction masks against ground truth masks."""
     # Define paths
-    pred_dir = Path("/Users/zebpalm/Exjobb 2025/Coding/gradient_thresholding_2/binary_masks")
-    truth_dir = Path("/Users/zebpalm/Exjobb 2025/Coding/binary_masks/overlapped_truth_masks/pore")
+    pred_dir = Path("/Users/zebpalm/Exjobb 2025/Coding/adaptive_threshold_filtered/evaluation_images_topo1/topo1_evaluation/binary_masks")
+    truth_dir = Path("/Users/zebpalm/Exjobb 2025/Coding/binary_masks/William/swelling")
     
     if not pred_dir.exists() or not truth_dir.exists():
         raise FileNotFoundError("Prediction or ground truth directory not found")
@@ -76,6 +76,14 @@ def evaluate_masks():
             # Calculate metrics
             metrics = calculate_metrics(pred_mask, truth_mask)
             all_metrics.append(metrics)
+            
+            # Print individual image metrics
+            print(f"\nMetrics for {pred_path.name}:")
+            print(f"Dice Dissimilarity: {metrics['dice_dissimilarity']:.4f}")
+            print(f"Jaccard Dissimilarity: {metrics['jaccard_dissimilarity']:.4f}")
+            print(f"Precision: {metrics['precision']:.4f}")
+            print(f"Recall: {metrics['recall']:.4f}")
+            print(f"F1 Score: {metrics['f1_score']:.4f}")
             
         except Exception as e:
             print(f"Error processing {pred_path.name}: {str(e)}")
