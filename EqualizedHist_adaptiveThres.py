@@ -2,10 +2,12 @@ import cv2
 import numpy as np
 import os
 from pathlib import Path
+import time
 
-def preprocess_image(image, kernel_size=(9,9), sigma=2.0, block_size=3, constant=2.0):
+def preprocess_image(image, kernel_size=(9,9), sigma=2.0, block_size=3, constant=2.0, return_timings=False):
     """
     Preprocess grayscale image with Gaussian blur, histogram equalization, and adaptive thresholding.
+    Optionally returns timing for each step.
     
     Args:
         image: Input grayscale image
@@ -13,22 +15,27 @@ def preprocess_image(image, kernel_size=(9,9), sigma=2.0, block_size=3, constant
         sigma: Standard deviation for Gaussian blur
         block_size: Size of a pixel neighborhood for adaptive thresholding (must be odd)
         constant: Constant subtracted from the mean or weighted mean
+        return_timings: If True, also return a dict of timings for each step
     
     Returns:
         Tuple of (preprocessed image, thresholded image, eroded_dilated image, filtered segmented image)
+        If return_timings=True, also returns a dict of timings for each step
     """
+    timings = {}
+    start = time.time()
     # Apply Gaussian blur
     blurred = cv2.GaussianBlur(image, kernel_size, sigma)
+    timings['gaussian_blur'] = time.time() - start
     
+    start = time.time()
     # Apply histogram equalization first
     equalized = cv2.equalizeHist(blurred)
+    timings['histogram_equalization'] = time.time() - start
     
+    start = time.time()
     # Apply adaptive thresholding
-    # Ensure block_size is odd
     if block_size % 2 == 0:
         block_size += 1
-    
-    # Apply adaptive thresholding using Gaussian method
     adaptive_thresh = cv2.adaptiveThreshold(
         equalized,
         255,
@@ -37,47 +44,54 @@ def preprocess_image(image, kernel_size=(9,9), sigma=2.0, block_size=3, constant
         block_size,
         constant
     )
+    timings['adaptive_thresholding'] = time.time() - start
     
-    # First filtering step: Erosion and Dilation
+    # First filtering step: Morphological Opening (Erosion + Dilation)
+    start = time.time()
     kernel = np.ones((9,9), np.uint8)
-    eroded = cv2.erode(adaptive_thresh, kernel, iterations=1)
-    eroded_dilated = cv2.dilate(eroded, kernel, iterations=1)
+    eroded_dilated = cv2.morphologyEx(adaptive_thresh, cv2.MORPH_OPEN, kernel)
+    timings['opening'] = time.time() - start
     
     # Find connected components in the filtered image
+    start = time.time()
     num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(eroded_dilated, connectivity=8)
-    
-    # Create a mask for regions that meet our criteria
     mask = np.zeros_like(eroded_dilated)
-    
-    # Filter regions based on size and shape
     min_area = 1000  # Minimum area in pixels
     max_area = 100000  # Maximum area in pixels
     min_solidity = 0.67  # Minimum solidity (area / convex hull area)
-    
+
+    # --- SIZE AND SHAPE FILTERING (commented out for optional use) ---
     for i in range(1, num_labels):  # Skip background (label 0)
         area = stats[i, cv2.CC_STAT_AREA]
-        
-        # Get the contour of this region
         region_mask = (labels == i).astype(np.uint8) * 255
         contours, _ = cv2.findContours(region_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
         if len(contours) > 0:
             contour = contours[0]
-            # Calculate solidity
             hull = cv2.convexHull(contour)
             hull_area = cv2.contourArea(hull)
             solidity = float(area) / hull_area if hull_area > 0 else 0
-            
-            # Keep region if it meets our criteria
             if (min_area <= area <= max_area) and (solidity >= min_solidity):
                 mask[labels == i] = 255
+    # --- END SIZE AND SHAPE FILTERING ---
+
+    # If filtering is commented out, just copy the eroded_dilated mask
+    if np.count_nonzero(mask) == 0:
+        mask = eroded_dilated.copy()
+    timings['region_filtering'] = time.time() - start
     
     # Apply morphological operations to clean up the segmentation
+    start = time.time()
     kernel = np.ones((5,5), np.uint8)
     segmented = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    timings['morph_close'] = time.time() - start
+    start = time.time()
     segmented = cv2.morphologyEx(segmented, cv2.MORPH_OPEN, kernel)
+    timings['morph_open'] = time.time() - start
     
-    return equalized, adaptive_thresh, eroded_dilated, segmented
+    if return_timings:
+        return equalized, adaptive_thresh, eroded_dilated, segmented, timings
+    else:
+        return equalized, adaptive_thresh, eroded_dilated, segmented
 
 def create_comparison_image(original, preprocessed, thresholded, eroded_dilated, filtered_segmented):
     """
@@ -134,9 +148,6 @@ def create_comparison_image(original, preprocessed, thresholded, eroded_dilated,
 
 def main():
     # Input and output base directories
-    # base_input_dir = Path("/Users/zebpalm/Exjobb 2025/BSE images/topo1/Top_180_divided_samples")
-    # base_output_dir = Path("/Users/zebpalm/Exjobb 2025/Coding/adaptive_threshold_filtered")
-
     base_input_dir = Path("/Users/zebpalm/Exjobb 2025/BSE images/evaluation_images/topo1_evaluation")
     base_output_dir = Path("/Users/zebpalm/Exjobb 2025/Coding/adaptive_threshold_filtered/evaluation_images_topo1")
     
@@ -152,12 +163,8 @@ def main():
         output_dir = base_output_dir / input_dir.name
         output_dir.mkdir(parents=True, exist_ok=True)
         
-        #print(f"\nProcessing images from: {input_dir}")
-        #print(f"Saving processed images to: {output_dir}")
-        
         # Process each image in the input directory
         for img_path in input_dir.glob("*.png"):
-            #print(f"Processing: {img_path}")
             # Read image
             image = cv2.imread(str(img_path), cv2.IMREAD_GRAYSCALE)
             if image is None:
@@ -165,21 +172,11 @@ def main():
                 continue
             
             # Preprocess image with default parameters
-            preprocessed, thresholded, eroded_dilated, filtered = preprocess_image(image)
+            _, _, _, filtered = preprocess_image(image)
             
-            # Create comparison image
-            comparison = create_comparison_image(
-                image,
-                preprocessed,
-                thresholded,
-                eroded_dilated,
-                filtered
-            )
-            
-            # Save comparison image
-            comparison_path = output_dir / f"comparison_{img_path.stem}.png"
-            cv2.imwrite(str(comparison_path), comparison)
-            #print(f"Saved comparison: {comparison_path}")
+            # Save binary mask
+            binary_mask_path = output_dir / f"filtered_{img_path.stem}.png"
+            cv2.imwrite(str(binary_mask_path), filtered)
 
 if __name__ == "__main__":
     main()
